@@ -75,15 +75,11 @@ const Scrapper = () => {
     console.log(values);
     setExcelName(values.fileName);
 
-    const response = await axios.post(
-      "https://web-scraper-nodejs-1ugk.onrender.com/",
-      values,
-      {
-        headers: {
-          "Content-Type": "application/json", // Add other default headers as needed
-        },
-      }
-    );
+    const response = await axios.post("http://localhost:5000", values, {
+      headers: {
+        "Content-Type": "application/json", // Add other default headers as needed
+      },
+    });
 
     console.log(response.status);
     setData(
