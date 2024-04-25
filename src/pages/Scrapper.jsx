@@ -3,16 +3,7 @@ import React, { useRef, useState } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { Excel } from "antd-table-saveas-excel";
 import axios from "axios";
-
-// const handlePrint = () => {
-//   debugger;
-//   const excel = new Excel();
-//   excel
-//     .addSheet("sheet 1")
-//     .addColumns(columns)
-//     .addDataSource(data, { str2Percent: true })
-//     .saveAs("fileName.xlsx");
-// };
+import CustomTable from "../components/CustomTable";
 
 // const data = [
 //   {
@@ -84,22 +75,43 @@ const Scrapper = () => {
     console.log(values);
     setExcelName(values.fileName);
 
-    const response = await axios.post("http://localhost:5000/", values, {
-      headers: {
-        "Content-Type": "application/json", // Add other default headers as needed
-      },
-    });
+    const response = await axios.post(
+      "https://web-scraper-nodejs-1ugk.onrender.com/",
+      values,
+      {
+        headers: {
+          "Content-Type": "application/json", // Add other default headers as needed
+        },
+      }
+    );
 
-    console.log(response);
-    setData(response.data);
+    console.log(response.status);
+    setData(
+      response.data.map((obj, index) => {
+        return { ...obj, key: index + 1 };
+      })
+    );
     setLoading(false);
+    if (response.status == 500) {
+      alert("Failed to fetch data");
+      setLoading(false);
+    }
   };
 
   const handleDownload = () => {
-    const filePath = `N:/My Projects/Web Scraper/server/${excelName}.csv`;
+    const excel = new Excel();
 
-    // Open the file in a new browser tab
-    window.open(filePath);
+    // Define column configurations
+    const columnConfig = columns.map((column) => ({
+      ...column,
+      width: 200, // Set your desired width here
+    }));
+
+    excel
+      .addSheet("sheet1")
+      .addColumns(columnConfig)
+      .addDataSource(data)
+      .saveAs(`${excelName}.xlsx`);
   };
 
   return (
@@ -172,7 +184,12 @@ const Scrapper = () => {
           </Col>
         </Row>
         <Spin spinning={loading}>
-          <Table columns={columns} dataSource={data} />
+          <CustomTable
+            columns={columns}
+            dataSource={data}
+            isFilter={true}
+            actionColumn={false}
+          />
         </Spin>
       </div>
     </>
