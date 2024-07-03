@@ -176,7 +176,7 @@ const CustomTable = ({
       body: data,
     };
 
-    doc.text("Your Title Here", 250, 30);
+    doc.text(" ", 250, 30);
     autoTable(doc, content);
 
     doc.save("export.pdf");
@@ -236,27 +236,27 @@ const CustomTable = ({
             lg={{ offset: 14, span: 2 }}
             xl={{ offset: 16, span: 1 }}
           >
-            {/* <Tooltip title="Export to Pdf">
+            <Tooltip title="Export to Pdf">
               <FilePdfOutlined
                 onClick={exportPDF}
                 style={{ fontSize: "1.8rem" }}
               />
-            </Tooltip> */}
+            </Tooltip>
           </Col>
-          <Col
+          {/* <Col
             xs={{ span: 3 }}
             sm={{ span: 3 }}
             md={{ span: 2 }}
             lg={{ span: 2 }}
             xl={{ span: 1 }}
           >
-            {/* <Tooltip title="Export to Excel">
+            <Tooltip title="Export to Excel">
               <SiMicrosoftexcel
                 onClick={exportCSV}
                 style={{ fontSize: "1.8rem" }}
               />
-            </Tooltip> */}
-          </Col>
+            </Tooltip>
+          </Col> */}
           <Col
             xs={{ span: 24 }}
             sm={{ span: 12 }}
@@ -265,6 +265,7 @@ const CustomTable = ({
             xl={{ span: 6 }}
           >
             <Input
+              allowClear
               placeholder="Search in table"
               suffix={<SearchOutlined />}
               onChange={(e) => handleSearch(e.target.value)}

@@ -1,37 +1,13 @@
-import { Button, Col, Form, Input, Row, Table, Space, Spin } from "antd";
-import React, { useRef, useState } from "react";
-import { DownloadOutlined } from "@ant-design/icons";
-import { Excel } from "antd-table-saveas-excel";
+import { Button, Col, Form, Input, Row, Space, Spin, Table } from "antd";
+import React, { useEffect, useState } from "react";
+import {
+  DownloadOutlined,
+  SearchOutlined,
+  StopOutlined,
+} from "@ant-design/icons";
 import axios from "axios";
-import CustomTable from "../components/CustomTable";
-
-// const data = [
-//   {
-//     key: "1",
-//     name: "John Brown",
-//     Category: 32,
-//     address:
-//       "Lorem ipsum, dolor sit amet consectetur adipisicing elit. Nam recusandae mollitia nostrum quis unde, rerum, optio voluptatibus, non fuga aspernatur veritatis maiores commodi sunt. Atque.",
-//   },
-//   {
-//     key: "2",
-//     name: "Joe Black",
-//     Category: 42,
-//     address: "London No. 1 Lake Park",
-//   },
-//   {
-//     key: "3",
-//     name: "Jim Green",
-//     Category: 32,
-//     address: "Sydney No. 1 Lake Park",
-//   },
-//   {
-//     key: "4",
-//     name: "Jim Red",
-//     Category: 32,
-//     address: "London No. 2 Lake Park",
-//   },
-// ];
+import useWebSocket from "react-use-websocket";
+import CustomTable from "../components/CustomTable.jsx";
 
 const columns = [
   {
@@ -62,133 +38,202 @@ const columns = [
     title: "Website",
     dataIndex: "website",
     key: "Website",
+    width: "20%",
+    render: (text) => <a>{text}</a>,
   },
 ];
 
 const Scrapper = () => {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState([]);
+  const [totalSearchResults, setTotalSearchResults] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [excelName, setExcelName] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [fileLink, setFileLink] = useState("");
+  const [error, setError] = useState("");
+
+  const { sendMessage } = useWebSocket("ws://localhost:5000", {
+    onMessage: (event) => {
+      const message = JSON.parse(event.data);
+
+      if (message.type === "data") {
+        setData((prevData) => [...prevData, ...message.data]);
+      } else if (message.type === "complete") {
+        setFileLink(message.fileName);
+        setLoading(false);
+      } else if (message.type === "error") {
+        setError(message.error);
+        setLoading(false);
+      } else if (message.type === "totalResults") {
+        setTotalSearchResults(message.data);
+      } else if (message.type === "stopped") {
+        setLoading(false);
+      }
+    },
+    onClose: () => {
+      console.log("WebSocket connection closed");
+    },
+    shouldReconnect: (closeEvent) => true,
+  });
 
   const onFinish = async (values) => {
     setLoading(true);
-    console.log(values);
-    setExcelName(values.fileName);
+    setFileName(values.fileName);
+    setData([]);
+    setFileLink("");
+    setError("");
+    setTotalSearchResults(0);
 
-    const response = await axios.post("http://localhost:5000", values, {
-      headers: {
-        "Content-Type": "application/json", // Add other default headers as needed
-      },
-    });
-
-    console.log(response.status);
-    setData(
-      response.data.map((obj, index) => {
-        return { ...obj, key: index + 1 };
-      })
-    );
-    setLoading(false);
-    if (response.status == 500) {
-      alert("Failed to fetch data");
+    try {
+      await axios.post("http://localhost:5000", values, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (error) {
+      console.error("Error starting the scraping process:", error);
+      setError("Failed to start the scraping process");
       setLoading(false);
     }
   };
 
-  const handleDownload = () => {
-    const excel = new Excel();
+  const downloadFile = () => {
+    const link = document.createElement("a");
+    link.href = `http://localhost:5000/download/${fileName}.csv`;
+    link.download = `${fileName}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
-    // Define column configurations
-    const columnConfig = columns.map((column) => ({
-      ...column,
-      width: 200, // Set your desired width here
-    }));
-
-    excel
-      .addSheet("sheet1")
-      .addColumns(columnConfig)
-      .addDataSource(data)
-      .saveAs(`${excelName}.xlsx`);
+  const stopScraping = () => {
+    sendMessage(JSON.stringify({ type: "stop" }));
   };
 
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        <h1>Google Maps Data Scrapper</h1>
-
+      <h1 style={{ textAlign: "center" }}>Google Maps Data Scraper</h1>
+      <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
         <Form
-          layout="vertical"
-          name="Scrapper-form"
+          name="basic"
+          initialValues={{ remember: true }}
           onFinish={onFinish}
+          autoComplete="off"
           style={{ width: "70%" }}
         >
-          <Row gutter={24}>
-            <Col span={10}>
+          <Row gutter={32}>
+            <Col span={12}>
               <Form.Item
+                label="Google URL"
                 name="googleUrl"
-                label="Google Maps Url"
                 rules={[
-                  {
-                    required: true,
-                  },
+                  { required: true, message: "Please input Google URL!" },
                 ]}
               >
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={10}>
+            <Col span={12}>
               <Form.Item
-                name="fileName"
                 label="File Name"
-                rules={[
-                  {
-                    required: true,
-                  },
-                ]}
+                name="fileName"
+                rules={[{ required: true, message: "Please input file name!" }]}
               >
                 <Input />
               </Form.Item>
             </Col>
           </Row>
-          <Row>
-            <Col offset={18}>
+          <Row justify="end" gutter={16}>
+            <Col>
               <Form.Item>
-                <Button type="primary" htmlType="submit">
-                  Submit
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SearchOutlined />}
+                  disabled={loading}
+                >
+                  Start Scraping
+                </Button>
+              </Form.Item>
+            </Col>
+            <Col>
+              <Form.Item>
+                <Button
+                  // type="outlined"
+                  icon={<StopOutlined />}
+                  onClick={stopScraping}
+                  disabled={!loading}
+                >
+                  Stop Scraping
                 </Button>
               </Form.Item>
             </Col>
           </Row>
         </Form>
       </div>
-      <div style={{ textAlign: "center", margin: "0 5%" }}>
-        <Row>
-          <Col offset={10}>
-            <h2>Data List</h2>
-          </Col>
-          <Col offset={9} style={{ display: "flex", alignItems: "center" }}>
-            <Button type="primary" onClick={handleDownload}>
-              Export to Excel
-              <DownloadOutlined style={{ fontSize: "1.2rem" }} />
-            </Button>
-          </Col>
-        </Row>
-        <Spin spinning={loading}>
-          <CustomTable
-            columns={columns}
-            dataSource={data}
-            isFilter={true}
-            actionColumn={false}
+      <div
+        style={{
+          width: "95%",
+          margin: "0 auto",
+          display: "flex",
+          justifyContent: "center",
+          flexDirection: "column",
+        }}
+      >
+        {loading && (
+          <Spin
+            tip="Scraping data..."
+            style={{ marginTop: 20, marginBottom: 20, textAlign: "center" }}
           />
-        </Spin>
+        )}
+        {totalSearchResults > 0 && (
+          <div
+            style={{
+              marginTop: 20,
+              marginBottom: 20,
+              textAlign: "center",
+            }}
+          >
+            <p>Total Search Results: {totalSearchResults}</p>
+            <p>
+              Remaining:{" "}
+              {totalSearchResults - (data.length > 0 ? data.length : 0)}
+            </p>
+          </div>
+        )}
+        {error && (
+          <div
+            style={{
+              color: "red",
+              marginTop: 20,
+              marginBottom: 20,
+              textAlign: "center",
+            }}
+          >
+            {error}
+          </div>
+        )}
+        {fileLink && (
+          <Button
+            type="primary"
+            onClick={downloadFile}
+            icon={<DownloadOutlined />}
+            style={{ width: "min-content", margin: "0 auto" }}
+          >
+            {`Download ${fileName}.csv`}
+          </Button>
+        )}
+        <CustomTable
+          columns={columns}
+          dataSource={data}
+          rowKey={(record) => record.url}
+          pagination={false}
+          style={{ marginTop: 20, width: "100%" }}
+          isFilter={true}
+          actionColumn={false}
+        />
       </div>
     </>
   );
 };
+
 export default Scrapper;

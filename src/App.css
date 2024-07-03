@@ -10,7 +10,3 @@ span {
   font-family: "poppins", sans-serif !important;
 }
 
-@font-face {
-  font-family: "poppins";
-  src: url(./assets/font/Poppins/Poppins-Regular.ttf) format("truetype");
-}
